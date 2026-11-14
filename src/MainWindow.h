@@ -45,7 +45,7 @@ private:
     void ShowBackgroundMenu(const QPoint& ptGlobal);
     void ShowBookMenu(int nBook, const QPoint& ptGlobal);
     void AddFieldItems(QMenu* pMenu, const QList<QPair<EField, QString>>& aItems, EField eCurrent,
-                       const std::function<void(EField)>& fnSelect);
+                       const std::function<void(EField)>& fnSelect, const std::function<bool(EField)>& fnEnabled = {});
 
     void OpenBook(int nBook, const QString& sPagePath = {});
     void OpenFile(const QString& sPath);
@@ -54,6 +54,9 @@ private:
     void OpenFolder(int nBook);
     bool openWithSystemDefault(const QUrl &url);
     void ShowHelp();
+    void AddGroupFilter(int nGroup);
+    bool RemoveLastGroupFilter();
+    QString FieldLabel(EField eField) const;
     void OnThumbnailFailed(const QString& sMarker, const QString& sCoverPath);
 
     QSettings&          m_settings;             // configuration (~/.config/mkProjects/mkMangaBrowser.conf)

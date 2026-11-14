@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QFileInfo>
 #include <QLinearGradient>
 #include <QPainter>
 #include <QScreen>
@@ -77,7 +78,8 @@ CBookGridView::CBookGridView(QWidget* pParent)
 
 CBookGridView::~CBookGridView() = default;
 
-void CBookGridView::SetContent(const QList<SBook>* pBooks, const QList<SGroup>& aGroups, EField eText, CThumbnailCache* pCache)
+void CBookGridView::SetContent(const QList<SBook>* pBooks, const QList<SGroup>& aGroups, EField eText, CThumbnailCache* pCache,
+                               bool bChapterMode)
 {
     HideInfoPopup();
     if (m_pCache != pCache) {
@@ -90,7 +92,8 @@ void CBookGridView::SetContent(const QList<SBook>* pBooks, const QList<SGroup>& 
     m_pBooks = pBooks;
     m_aGroups = aGroups;
     m_eText = eText;
-    m_aThumbWidths = QList<int>(m_pBooks ? m_pBooks->size() : 0, -1);
+    m_bChapterMode = bChapterMode;
+    m_mapThumbWidths.clear();
     m_nLayoutWidth = -1;
     Relayout();
     viewport()->update();
@@ -118,81 +121,125 @@ void CBookGridView::Relayout()
     int  nXMax = 0;
     bool bAfterImage = false;
 
-    for (const SGroup& group : std::as_const(m_aGroups)) {
+    for (int nGroup = 0; nGroup < m_aGroups.size(); ++nGroup) {
+        const SGroup& group = m_aGroups.at(nGroup);
         const int nMembers = group.aMembers.size();
         if (nMembers == 0 || nMembers == group.nHidden)
             continue;   // group without visible books -> no header
 
-        // ---- Header "Title  (n total / m hidden)" + gradient line
-        SHeaderItem header;
-        header.sTitle = group.sTitle;
-        header.sCount = group.nHidden > 0 ? tr("(%1 total / %2 hidden)").arg(nMembers).arg(group.nHidden)
-                                          : tr("(%1 total)").arg(nMembers);
-        int nY = nYMax + kGroupDistanceV;
-        if (!bAfterImage)
-            nY -= kGroupDistanceTop;
-
-        header.rcTitle = QRect(kHeaderX, nY, fmHeader.horizontalAdvance(header.sTitle), fmHeader.height());
-        const int nBaseline = nY + fmHeader.ascent();
-        header.rcCount = QRect(header.rcTitle.right() + 1 + kCountGapX, nBaseline - fmSmall.ascent(),
-                               fmSmall.horizontalAdvance(header.sCount), fmSmall.height());
-        header.nCountBaseline = nBaseline;
-        const int nLineY = std::max(header.rcTitle.bottom(), header.rcCount.bottom()) + 1 + kUnderlineDist;
-        header.rcLine = QRect(0, nLineY, kLineWidth, 1);
-        m_aHeaders.append(header);
-
-        nYMax = header.rcLine.bottom() + 1;
-        nXMax = std::max({ nXMax, header.rcLine.right() + 1, header.rcCount.right() + 1 });
         bool bAfterHeader = true;
-        bAfterImage = false;
+        if (group.sTitle.isEmpty()) {
+            // No grouping: thumbnails only, no header (saves vertical space)
+            bAfterImage = false;
+        }
+        else {
+            // ---- Header "Title  (n total / m hidden)" + gradient line
+            SHeaderItem header;
+            header.nGroup = nGroup;
+            header.sTitle = group.sTitle;
+            header.sCount = group.nHidden > 0 ? tr("(%1 total / %2 hidden)").arg(nMembers).arg(group.nHidden)
+                                              : tr("(%1 total)").arg(nMembers);
+            int nY = nYMax + kGroupDistanceV;
+            if (!bAfterImage)
+                nY -= kGroupDistanceTop;
+
+            header.rcTitle = QRect(kHeaderX, nY, fmHeader.horizontalAdvance(header.sTitle), fmHeader.height());
+            const int nBaseline = nY + fmHeader.ascent();
+            header.rcCount = QRect(header.rcTitle.right() + 1 + kCountGapX, nBaseline - fmSmall.ascent(),
+                                   fmSmall.horizontalAdvance(header.sCount), fmSmall.height());
+            header.nCountBaseline = nBaseline;
+            const int nLineY = std::max(header.rcTitle.bottom(), header.rcCount.bottom()) + 1 + kUnderlineDist;
+            header.rcLine = QRect(0, nLineY, kLineWidth, 1);
+            m_aHeaders.append(header);
+
+            nYMax = header.rcLine.bottom() + 1;
+            nXMax = std::max({ nXMax, header.rcLine.right() + 1, header.rcCount.right() + 1 });
+            bAfterImage = false;
+        }
 
         // ---- Thumbnails (wrap as soon as the next image would extend past the right edge)
         int nPreviousX = 0;
         QPoint ptNext;
+        bool bFirstBook = true;
         for (const int nBook : group.aMembers) {
             const SBook& book = m_pBooks->at(nBook);
             if (!book.bVisible)
                 continue;
 
-            int& nWidth = m_aThumbWidths[nBook];
-            if (nWidth < 0)
-                nWidth = m_pCache->Prepare(book.sThumbMarker, book.sCoverPath);
-
-            QPoint ptImage;
-            if (nPreviousX + kImageDistanceH + nWidth > nClientW - kRightReserve) {
-                ptImage = QPoint(kLeftMarginImage, nYMax + kImageDistanceV);
-                nPreviousX = kLeftMarginImage + nWidth;
-            }
-            else if (bAfterHeader) {
-                ptImage = QPoint(kLeftMarginImage, nYMax + kHeaderToImage);
-                nPreviousX = kLeftMarginImage + nWidth;
-            }
-            else {
-                ptImage = ptNext;
-                nPreviousX += kImageDistanceH + nWidth;
-            }
-
-            SThumbItem item;
-            item.nBook = nBook;
-            item.rcImage = QRect(ptImage, QSize(nWidth, kThumbHeight));
-
-            if (m_eText != EField::None) {
-                const QString sText = book.Field(m_eText);
-                if (!sText.isEmpty()) {
-                    item.sText = sText;
-                    const QRect rcBound = fmSmall.boundingRect(QRect(0, 0, nWidth, INT_MAX / 2), kTextFlags, sText);
-                    item.rcText = QRect(ptImage.x(), item.rcImage.bottom() + 1 + kTextGapY, nWidth, rcBound.height());
+            // ---- Thumbnails of this book: cover, in chapter mode also one per defined chapter
+            struct SEntry {
+                int     nChapter;
+                QString sMarker;
+                QString sSource;    // empty -> placeholder "Missing"
+                QString sText;
+            };
+            QList<SEntry> aEntries;
+            aEntries.append({ -1, book.sThumbMarker, book.sCoverPath, m_eText != EField::None ? book.Field(m_eText) : QString() });
+            if (m_bChapterMode) {
+                for (int i = 0; i < book.meta.aChapters.size(); ++i) {
+                    const SChapter& ch = book.meta.aChapters.at(i);
+                    if (ch.sCover.isEmpty() && ch.sStart.isEmpty())
+                        continue;   // not defined yet
+                    // Marker named after the image, so that a changed chN_cover gets its own thumbnail
+                    const QString sSource = book.ChapterCoverPath(i);
+                    const QString sMarker = book.sThumbMarker + QLatin1Char('#')
+                                            + (sSource.isEmpty() ? QStringLiteral("ch%1-missing").arg(i + 1)
+                                                                 : QFileInfo(sSource).completeBaseName());
+                    QString sText;
+                    if (m_eText != EField::None) {
+                        sText = !ch.sTitle.isEmpty() ? ch.sTitle : ch.sTitleOrig;
+                        if (sText.isEmpty())
+                            sText = tr("Chapter %1").arg(i + 1);
+                    }
+                    aEntries.append({ i, sMarker, sSource, sText });
                 }
             }
 
-            const int nBottom = item.rcText.isNull() ? item.rcImage.bottom() + 1 : item.rcText.bottom() + 1;
-            nYMax = std::max(nYMax, nBottom);
-            nXMax = std::max(nXMax, item.rcImage.right() + 1);
-            ptNext = QPoint(item.rcImage.right() + 1 + kImageDistanceH, item.rcImage.top());
-            m_aThumbs.append(item);
+            for (const SEntry& entry : std::as_const(aEntries)) {
+                auto itWidth = m_mapThumbWidths.find(entry.sMarker);
+                if (itWidth == m_mapThumbWidths.end())
+                    itWidth = m_mapThumbWidths.insert(entry.sMarker, m_pCache->Prepare(entry.sMarker, entry.sSource));
+                const int nWidth = *itWidth;
 
-            bAfterHeader = false;
-            bAfterImage = true;
+                // In chapter mode every book starts a new row
+                const bool bNewBookRow = m_bChapterMode && entry.nChapter < 0 && !bFirstBook;
+
+                QPoint ptImage;
+                if (bNewBookRow || nPreviousX + kImageDistanceH + nWidth > nClientW - kRightReserve) {
+                    ptImage = QPoint(kLeftMarginImage, nYMax + kImageDistanceV);
+                    nPreviousX = kLeftMarginImage + nWidth;
+                }
+                else if (bAfterHeader) {
+                    ptImage = QPoint(kLeftMarginImage, nYMax + kHeaderToImage);
+                    nPreviousX = kLeftMarginImage + nWidth;
+                }
+                else {
+                    ptImage = ptNext;
+                    nPreviousX += kImageDistanceH + nWidth;
+                }
+
+                SThumbItem item;
+                item.nBook = nBook;
+                item.nChapter = entry.nChapter;
+                item.sMarker = entry.sMarker;
+                item.rcImage = QRect(ptImage, QSize(nWidth, kThumbHeight));
+
+                if (!entry.sText.isEmpty()) {
+                    item.sText = entry.sText;
+                    const QRect rcBound = fmSmall.boundingRect(QRect(0, 0, nWidth, INT_MAX / 2), kTextFlags, item.sText);
+                    item.rcText = QRect(ptImage.x(), item.rcImage.bottom() + 1 + kTextGapY, nWidth, rcBound.height());
+                }
+
+                const int nBottom = item.rcText.isNull() ? item.rcImage.bottom() + 1 : item.rcText.bottom() + 1;
+                nYMax = std::max(nYMax, nBottom);
+                nXMax = std::max(nXMax, item.rcImage.right() + 1);
+                ptNext = QPoint(item.rcImage.right() + 1 + kImageDistanceH, item.rcImage.top());
+                m_aThumbs.append(item);
+
+                bAfterHeader = false;
+                bAfterImage = true;
+            }
+            bFirstBook = false;
         }
     }
 
@@ -264,7 +311,7 @@ void CBookGridView::paintEvent(QPaintEvent* pEvent)
         if (!rcAll.intersects(rcVisible))
             continue;
         const SBook& book = m_pBooks->at(item.nBook);
-        const QPixmap pm = m_pCache->Pixmap(book.sThumbMarker, book.bShaded);
+        const QPixmap pm = m_pCache->Pixmap(item.sMarker, book.bShaded);
         if (pm.isNull())
             painter.fillRect(item.rcImage, kPlaceholder);     // still being generated
         else
@@ -282,7 +329,7 @@ void CBookGridView::OnThumbnailReady(const QString& sMarker)
     const QPoint ptOffset = ContentOffset();
     const QRect rcView(ptOffset, viewport()->size());
     for (const SThumbItem& item : std::as_const(m_aThumbs)) {
-        if (m_pBooks->at(item.nBook).sThumbMarker == sMarker && item.rcImage.intersects(rcView))
+        if (item.sMarker == sMarker && item.rcImage.intersects(rcView))
             viewport()->update(item.rcImage.translated(-ptOffset));
     }
 }
@@ -313,6 +360,19 @@ const CBookGridView::SThumbItem* CBookGridView::ThumbAt(const QPoint& ptViewport
             return &item;
     }
     return nullptr;
+}
+
+int CBookGridView::HeaderAt(const QPoint& ptViewport) const
+{
+    // Whole header row: title, counter and gradient line
+    const QPoint pt = ptViewport + ContentOffset();
+    for (const SHeaderItem& header : m_aHeaders) {
+        QRect rc = header.rcTitle.united(header.rcCount).united(header.rcLine);
+        rc.setLeft(0);
+        if (rc.contains(pt))
+            return header.nGroup;
+    }
+    return -1;
 }
 
 int CBookGridView::BookAt(const QPoint& ptViewport) const
@@ -427,9 +487,15 @@ void CBookGridView::mouseDoubleClickEvent(QMouseEvent* pEvent)
 {
     if (pEvent->button() == Qt::LeftButton) {
         HideInfoPopup();
-        const int nBook = BookAt(pEvent->position().toPoint());
-        if (nBook >= 0)
-            emit OpenBookRequested(nBook);
+        const QPoint pt = pEvent->position().toPoint();
+        if (const SThumbItem* pItem = ThumbAt(pt)) {
+            if (pItem->nChapter >= 0)
+                emit OpenChapterRequested(pItem->nBook, pItem->nChapter);
+            else
+                emit OpenBookRequested(pItem->nBook);
+        }
+        else if (const int nGroup = HeaderAt(pt); nGroup >= 0)
+            emit GroupHeaderActivated(nGroup);
         return;
     }
     QAbstractScrollArea::mouseDoubleClickEvent(pEvent);
@@ -449,6 +515,12 @@ void CBookGridView::mouseMoveEvent(QMouseEvent* pEvent)
     if (pt == m_ptLastMouse)
         return;
     m_ptLastMouse = pt;
+
+    // Group headers can be double-clicked (filter)
+    if (HeaderAt(pt) >= 0)
+        viewport()->setCursor(Qt::PointingHandCursor);
+    else
+        viewport()->unsetCursor();
 
     // Different item under the mouse -> close popup immediately (as in the original)
     if (m_pPopup->isVisible()) {

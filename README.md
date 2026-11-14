@@ -17,7 +17,13 @@ Folders whose name starts with `_` are ignored.
 
 ## Usage
 
-- **Right-click on empty space:** Group (author, type, title, year, year/month), sort, label.
+- **Right-click on empty space:** Group (author, series, type, title, year, year/month), sort, label.
+- **Double-click on a group header:** show only this group (filter) and switch to a grouping that still separates the
+  remaining books (after author: series or type; after type: author or series; after series: type). If none does,
+  the books are shown without grouping (no header) in the **chapter view**: each book starts a new row, followed by
+  one thumbnail per defined chapter (`chN_cover`, otherwise `chN_start`); double-clicking a chapter opens its start page.
+  Filters can be stacked;
+  **Backspace** or the mouse button **Back** removes the last one. Active filters are shown in the title bar.
 - **Right-click on a cover:** Open, Chapters, Edit meta file, Open folder, Google.
 - **Double-click:** open the first page in the system image viewer (mkImageViewer acts as the reader). **Hover:** info window with chapters.
 - **Ctrl+F:** filter bar (every word must occur in names, type, date or chapter titles). Esc clears and closes it.

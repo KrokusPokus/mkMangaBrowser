@@ -271,10 +271,11 @@ SBook LoadBook(const QString& sMangaDir, const QString& sBookPath, QStringList* 
     book.sTitle  = FirstNonEmpty({ book.meta.sTitle, book.meta.sTitleOrig, sFolderTitle, sBookFolderName });
     book.sDate   = FirstNonEmpty({ book.meta.sDate, sFolderDate });
 
-    // ---- Cover: "cover=" from the meta file, otherwise the first page
+    // ---- Cover: "cover=" from the meta file; only if it is empty the first page.
+    //      A cover that is given but not found stays empty (placeholder "Missing").
     if (!book.meta.sCover.isEmpty())
         book.sCoverPath = book.PagePath(book.meta.sCover);
-    if (book.sCoverPath.isEmpty() && !book.aPages.isEmpty())
+    else if (!book.aPages.isEmpty())
         book.sCoverPath = sBookPath + QLatin1Char('/') + book.aPages.first();
 
     return book;
@@ -288,6 +289,7 @@ QString FieldKey(EField eField)
         case EField::None:   return QStringLiteral("|");
         case EField::Author: return QStringLiteral("Author");
         case EField::Title:  return QStringLiteral("Title");
+        case EField::Series: return QStringLiteral("Series");
         case EField::Type:   return QStringLiteral("Type");
         case EField::Date:   return QStringLiteral("Date");
         case EField::DateYM: return QStringLiteral("DateYM");
@@ -297,7 +299,7 @@ QString FieldKey(EField eField)
 
 EField FieldFromKey(const QString& sKey, EField eFallback)
 {
-    for (EField e : { EField::None, EField::Author, EField::Title, EField::Type, EField::Date, EField::DateYM }) {
+    for (EField e : { EField::None, EField::Author, EField::Title, EField::Series, EField::Type, EField::Date, EField::DateYM }) {
         if (FieldKey(e) == sKey)
             return e;
     }
@@ -310,6 +312,7 @@ QString SBook::Field(EField eField) const
         case EField::None:   return {};
         case EField::Author: return sAuthor;
         case EField::Title:  return sTitle;
+        case EField::Series: return meta.sSeries;
         case EField::Type:   return meta.sType;
         case EField::Date:
         case EField::DateYM: return sDate;
@@ -330,11 +333,10 @@ QString SBook::ChapterCoverPath(int nChapter) const
 {
     if (nChapter < 0 || nChapter >= meta.aChapters.size())
         return {};
+    // Only an empty chN_cover falls back to chN_start; a page that is given but not found stays empty
+    // (shown as placeholder "Missing", so that typos in metadata.conf are visible)
     const SChapter& ch = meta.aChapters.at(nChapter);
-    QString sPath = ch.sCover.isEmpty() ? QString() : PagePath(ch.sCover);
-    if (sPath.isEmpty())
-        sPath = PagePath(ch.sStart);
-    return sPath;
+    return PagePath(ch.sCover.isEmpty() ? ch.sStart : ch.sCover);
 }
 
 namespace MangaLibrary {

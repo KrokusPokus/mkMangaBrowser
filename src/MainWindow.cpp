@@ -13,6 +13,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
@@ -76,6 +77,14 @@ CMainWindow::CMainWindow(QSettings& settings, const CConfig& config, QWidget* pP
     qApp->installEventFilter(this);
 
     connect(m_pView, &CBookGridView::OpenBookRequested, this, [this](int nBook) { OpenBook(nBook); });
+    connect(m_pView, &CBookGridView::OpenChapterRequested, this, [this](int nBook, int nChapter) {
+        // Open at the chapter's start page (not its title image); without one at the title image
+        const SBook& book = m_aBooks.at(nBook);
+        QString sPage = book.PagePath(book.meta.aChapters.at(nChapter).sStart);
+        if (sPage.isEmpty())
+            sPage = book.ChapterCoverPath(nChapter);
+        OpenBook(nBook, sPage);
+    });
     connect(m_pView, &CBookGridView::ContextMenuRequested, this, [this](int nBook, const QPoint& ptGlobal) {
         if (nBook < 0)
             ShowBackgroundMenu(ptGlobal);
@@ -87,6 +96,7 @@ CMainWindow::CMainWindow(QSettings& settings, const CConfig& config, QWidget* pP
     connect(m_pView, &CBookGridView::OpenFolderRequested, this, &CMainWindow::OpenFolder);
     connect(m_pView, &CBookGridView::ReloadRequested, this, &CMainWindow::LoadLibrary);
     connect(m_pView, &CBookGridView::HelpRequested, this, &CMainWindow::ShowHelp);
+    connect(m_pView, &CBookGridView::GroupHeaderActivated, this, &CMainWindow::AddGroupFilter);
 
     RestoreWindow();
 }
@@ -156,7 +166,9 @@ void CMainWindow::ApplyView(bool bRestoreScroll)
     const QPoint ptScroll = m_pView->ScrollPosition();
     ViewLogic::ApplyFilter(m_aBooks, m_view);
     m_aGroups = ViewLogic::BuildGroups(m_aBooks, m_view);
-    m_pView->SetContent(&m_aBooks, m_aGroups, m_view.eText, m_pCache);
+    // Chapter view as soon as the automatic grouping after group filters ended up at "none"
+    const bool bChapterMode = m_view.eGroup == EField::None && !m_view.aGroupFilters.isEmpty();
+    m_pView->SetContent(&m_aBooks, m_aGroups, m_view.eText, m_pCache, bChapterMode);
 
     if (m_bFirstShow) {
         m_bFirstShow = false;
@@ -283,6 +295,14 @@ void CMainWindow::changeEvent(QEvent* pEvent)
 // Installed on qApp (as in mkFolderWidget)
 bool CMainWindow::eventFilter(QObject* pObj, QEvent* pEvent)
 {
+    // Mouse button "Back" (XButton1) anywhere in the window: remove the last group filter
+    if (pEvent->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(pEvent)->button() == Qt::BackButton) {
+        auto* pWidget = qobject_cast<QWidget*>(pObj);
+        if (pWidget && pWidget->window() == this) {
+            RemoveLastGroupFilter();
+            return true;
+        }
+    }
     if (pEvent->type() != QEvent::KeyPress)
         return QMainWindow::eventFilter(pObj, pEvent);
 
@@ -316,10 +336,14 @@ bool CMainWindow::eventFilter(QObject* pObj, QEvent* pEvent)
     // Keys in the view
     if (pTargetWidget == m_pView || pTargetWidget->parent() == m_pView) {
         if (pKeyEvent->key() == Qt::Key_Backspace) {
+            // Open filter bar: back into it; otherwise remove the last group filter
             if (!m_pTopControlsContainerWidget->isHidden()) {
                 m_pFilterEdit->setFocus();
                 if (pKeyEvent->modifiers() == Qt::ControlModifier)
                     m_pFilterEdit->selectAll();
+            }
+            else {
+                RemoveLastGroupFilter();
             }
             return true;
         }
@@ -335,15 +359,70 @@ bool CMainWindow::eventFilter(QObject* pObj, QEvent* pEvent)
     return QMainWindow::eventFilter(pObj, pEvent);
 }
 
+// "Manga Browser - Author "Kei Sanbe", Type "Doujinshi" (12 of 340 Books)"
 void CMainWindow::UpdateTitle()
 {
     int nShown = 0;
     for (const SBook& book : std::as_const(m_aBooks))
         nShown += book.bVisible ? 1 : 0;
-    if (m_view.sTextFilter.trimmed().isEmpty())
-        setWindowTitle(tr("All Books (%1 total)").arg(m_aBooks.size()));
+
+    QStringList aFilters;
+    for (const SGroupFilter& f : std::as_const(m_view.aGroupFilters))
+        aFilters << tr("%1 \"%2\"").arg(FieldLabel(f.eField), f.sValue.isEmpty() ? tr("Unspecified") : f.sValue);
+    if (const QString sText = m_view.sTextFilter.trimmed(); !sText.isEmpty())
+        aFilters << tr("Text \"%1\"").arg(sText);
+
+    if (aFilters.isEmpty())
+        setWindowTitle(tr("Manga Browser - All Books (%1 total)").arg(m_aBooks.size()));
     else
-        setWindowTitle(tr("Partial List: %1 of %2 Books shown").arg(nShown).arg(m_aBooks.size()));
+        setWindowTitle(tr("Manga Browser - %1 (%2 of %3 Books)").arg(aFilters.join(QStringLiteral(", "))).arg(nShown).arg(m_aBooks.size()));
+}
+
+QString CMainWindow::FieldLabel(EField eField) const
+{
+    switch (eField) {
+        case EField::None:   return tr("None");
+        case EField::Author: return tr("Author");
+        case EField::Title:  return tr("Title");
+        case EField::Series: return tr("Series");
+        case EField::Type:   return tr("Type");
+        case EField::Date:   return tr("Year");
+        case EField::DateYM: return tr("Year/Month");
+    }
+    return {};
+}
+
+// =============================================================================================== Group filters
+
+// Double-click on a group header: its value becomes a filter, and the grouping switches to a field that
+// still separates the remaining books
+void CMainWindow::AddGroupFilter(int nGroup)
+{
+    if (nGroup < 0 || nGroup >= m_aGroups.size() || m_view.eGroup == EField::None)
+        return;
+    SGroupFilter filter;
+    filter.eField = m_view.eGroup;
+    filter.sValue = m_aGroups.at(nGroup).sValue;
+    filter.eGroupBefore = m_view.eGroup;
+    filter.ptScrollBefore = m_pView->ScrollPosition();
+    m_view.aGroupFilters.append(filter);
+
+    ViewLogic::ApplyFilter(m_aBooks, m_view);
+    m_view.eGroup = ViewLogic::ChooseGrouping(m_aBooks, m_view, filter.eField);
+    ApplyView(false);
+    m_pView->SetScrollPosition({});
+}
+
+// Backspace / mouse button "Back": undo the last group filter including grouping and scroll position
+bool CMainWindow::RemoveLastGroupFilter()
+{
+    if (m_view.aGroupFilters.isEmpty())
+        return false;
+    const SGroupFilter filter = m_view.aGroupFilters.takeLast();
+    m_view.eGroup = filter.eGroupBefore;
+    ApplyView(false);
+    m_pView->SetScrollPosition(filter.ptScrollBefore);
+    return true;
 }
 
 // =============================================================================================== Settings
@@ -393,7 +472,9 @@ void CMainWindow::SaveSettings()
     m_pState->endGroup();
 
     m_pState->beginGroup(QStringLiteral("View"));
-    m_pState->setValue(QStringLiteral("GroupMode"), FieldKey(m_view.eGroup));
+    // With group filters the grouping was chosen automatically; the grouping before the first filter is saved
+    const EField eGroup = m_view.aGroupFilters.isEmpty() ? m_view.eGroup : m_view.aGroupFilters.first().eGroupBefore;
+    m_pState->setValue(QStringLiteral("GroupMode"), FieldKey(eGroup));
     m_pState->setValue(QStringLiteral("SortMode"), FieldKey(m_view.eSort));
     m_pState->setValue(QStringLiteral("TextMode"), FieldKey(m_view.eText));
     m_pState->endGroup();
@@ -412,7 +493,7 @@ void CMainWindow::closeEvent(QCloseEvent* pEvent)
 // =============================================================================================== Background context menu
 
 void CMainWindow::AddFieldItems(QMenu* pMenu, const QList<QPair<EField, QString>>& aItems, EField eCurrent,
-                                const std::function<void(EField)>& fnSelect)
+                                const std::function<void(EField)>& fnSelect, const std::function<bool(EField)>& fnEnabled)
 {
     for (const auto& [eField, sText] : aItems) {
         if (sText.isEmpty()) {
@@ -422,6 +503,8 @@ void CMainWindow::AddFieldItems(QMenu* pMenu, const QList<QPair<EField, QString>
         QAction* pAction = pMenu->addAction(sText);
         pAction->setCheckable(true);
         pAction->setChecked(eField == eCurrent);
+        if (fnEnabled)
+            pAction->setEnabled(fnEnabled(eField));
         const EField eSelected = eField;
         connect(pAction, &QAction::triggered, this, [fnSelect, eSelected]() { fnSelect(eSelected); });
     }
@@ -433,15 +516,17 @@ void CMainWindow::ShowBackgroundMenu(const QPoint& ptGlobal)
 
     // ---- Group by
     QMenu* pGroup = menu.addMenu(tr("Group by"));
-    AddFieldItems(pGroup, { { EField::Author, tr("Author") }, { EField::Type, tr("Type") }, { EField::Title, tr("Title") },
-                            { EField::None, {} },
+    // Fields with a group filter would only produce a single group
+    AddFieldItems(pGroup, { { EField::Author, tr("Author") }, { EField::Series, tr("Series") }, { EField::Type, tr("Type") },
+                            { EField::Title, tr("Title") }, { EField::None, {} },
                             { EField::Date, tr("Date (Year)") }, { EField::DateYM, tr("Date (Year/Month)") } },
-                  m_view.eGroup, [this](EField e) { if (e != m_view.eGroup) { m_view.eGroup = e; ApplyView(true); } });
+                  m_view.eGroup, [this](EField e) { if (e != m_view.eGroup) { m_view.eGroup = e; ApplyView(true); } },
+                  [this](EField e) { return !m_view.IsFiltered(e); });
 
     // ---- Sort by
     QMenu* pSort = menu.addMenu(tr("Sort by"));
     AddFieldItems(pSort, { { EField::Date, tr("Date") }, { EField::None, {} }, { EField::Title, tr("Title") },
-                           { EField::Author, tr("Author") }, { EField::Type, tr("Type") } },
+                           { EField::Author, tr("Author") }, { EField::Series, tr("Series") }, { EField::Type, tr("Type") } },
                   m_view.eSort, [this](EField e) { if (e != m_view.eSort) { m_view.eSort = e; ApplyView(true); } });
 
     // ---- Description
@@ -451,7 +536,8 @@ void CMainWindow::ShowBackgroundMenu(const QPoint& ptGlobal)
     pNone->setChecked(m_view.eText == EField::None);
     connect(pNone, &QAction::triggered, this, [this]() { if (m_view.eText != EField::None) { m_view.eText = EField::None; ApplyView(true); } });
     pText->addSeparator();
-    AddFieldItems(pText, { { EField::Title, tr("Title") }, { EField::Author, tr("Author") }, { EField::Type, tr("Type") },
+    AddFieldItems(pText, { { EField::Title, tr("Title") }, { EField::Author, tr("Author") }, { EField::Series, tr("Series") },
+                           { EField::Type, tr("Type") },
                            { EField::None, {} }, { EField::Date, tr("Date") } },
                   m_view.eText, [this](EField e) { if (e != m_view.eText) { m_view.eText = e; ApplyView(true); } });
 
@@ -558,7 +644,9 @@ void CMainWindow::ShowHelp()
            "Ctrl+L\tOpen the folder of the book under the mouse\n"
            "Ctrl+F\tFilter (Esc closes the filter line)\n"
            "A-Z, 0-9\tJump to group\n"
-           "Double-click\tOpen book\n\n"
+           "Double-click\tOpen book\n"
+           "Double-click on a group header\tShow only this group (filter)\n"
+           "Backspace, mouse button Back\tRemove the last group filter\n\n"
            "F5\tReload Manga Browser\n"
            "Esc\tClose"));
 }

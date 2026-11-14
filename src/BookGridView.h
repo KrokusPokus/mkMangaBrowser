@@ -5,6 +5,7 @@
 #include "ViewSettings.h"
 
 #include <QAbstractScrollArea>
+#include <QHash>
 #include <QList>
 #include <QPointer>
 #include <QRect>
@@ -27,7 +28,9 @@ public:
     explicit CBookGridView(QWidget* pParent = nullptr);
     ~CBookGridView() override;
 
-    void SetContent(const QList<SBook>* pBooks, const QList<SGroup>& aGroups, EField eText, CThumbnailCache* pCache);
+    // bChapterMode: each book starts a new row and is followed by one thumbnail per defined chapter
+    void SetContent(const QList<SBook>* pBooks, const QList<SGroup>& aGroups, EField eText, CThumbnailCache* pCache,
+                    bool bChapterMode = false);
 
     QPoint ScrollPosition() const;
     void   SetScrollPosition(const QPoint& pt);
@@ -38,12 +41,14 @@ public:
 
 signals:
     void OpenBookRequested(int nBook);
+    void OpenChapterRequested(int nBook, int nChapter);             // double-click on a chapter thumbnail
     void ContextMenuRequested(int nBook, const QPoint& ptGlobal);   // nBook = -1: background
     void EditMetaRequested(int nBook);                              // Ctrl+E
     void WebSearchRequested(int nBook);                             // Ctrl+G
     void OpenFolderRequested(int nBook);                            // Ctrl+L (-1: Manga folder)
     void ReloadRequested();                                         // F5
     void HelpRequested();                                           // F1
+    void GroupHeaderActivated(int nGroup);                          // double-click on a group header (index into the groups)
 
 protected:
     void paintEvent(QPaintEvent* pEvent) override;
@@ -60,6 +65,7 @@ protected:
 
 private:
     struct SHeaderItem {
+        int     nGroup = -1;    // index into m_aGroups
         QString sTitle;
         QString sCount;
         QRect   rcTitle;
@@ -69,6 +75,8 @@ private:
     };
     struct SThumbItem {
         int     nBook = -1;
+        int     nChapter = -1;  // -1: book cover, otherwise index into meta.aChapters
+        QString sMarker;        // thumbnail cache marker
         QRect   rcImage;
         QRect   rcText;         // empty if there is no text
         QString sText;
@@ -78,6 +86,7 @@ private:
     void UpdateScrollBars();
     QPoint ContentOffset() const;
     const SThumbItem* ThumbAt(const QPoint& ptViewport) const;
+    int HeaderAt(const QPoint& ptViewport) const;      // group index or -1
     void ScrollBy(int dx, int dy);
     void ScrollToY(int y);
     void TypeToJump(const QString& sChar);
@@ -91,7 +100,8 @@ private:
 
     QList<SHeaderItem>      m_aHeaders;
     QList<SThumbItem>       m_aThumbs;
-    QList<int>              m_aThumbWidths;         // per book (logical pixels), -1 = not yet known
+    QHash<QString, int>     m_mapThumbWidths;       // per thumbnail marker (logical pixels)
+    bool                    m_bChapterMode = false;
     QSize                   m_szContent;
     int                     m_nLayoutWidth = -1;
 

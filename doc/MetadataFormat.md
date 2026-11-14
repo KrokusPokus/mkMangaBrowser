@@ -149,9 +149,12 @@ Every field may be missing (and the file itself, if it could not be created).
 | Displayed author   | `author`, `author_orig`, author folder name |
 | Displayed title    | `title`, `title_orig`, title from the book folder name (rules above) |
 | Date               | `date`, date from the book folder name (rules above) |
-| Book cover         | page given by `cover`, first page |
-| Chapter thumbnail  | page given by `chN_cover`, page given by `chN_start` |
+| Book cover         | page given by `cover`; first page only if `cover` is empty |
+| Chapter thumbnail  | page given by `chN_cover`; page given by `chN_start` only if `chN_cover` is empty |
 | Chapter title      | `chN_title`, `chN_title_orig`, "Chapter N" |
+
+A page that is given but not found (typo, missing file) does **not** fall back to the next source. Its thumbnail shows
+the placeholder image `res/Missing.png`, so that errors in `metadata.conf` are visible.
 
 ## Example
 

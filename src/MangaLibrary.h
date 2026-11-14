@@ -10,6 +10,7 @@ enum class EField {
     None,
     Author,
     Title,
+    Series,
     Type,
     Date,
     DateYM          // grouping only (year/month)
@@ -57,12 +58,13 @@ struct SBook {
     QString     sDate;
 
     // set by the filter
-    bool        bVisible = true;
+    bool        bInScope = true;    // passes the group filters (otherwise not part of any group)
+    bool        bVisible = true;    // in scope and passes the text filter
     bool        bShaded  = false;
 
     QString Field(EField eField) const;
     QString PagePath(const QString& sBaseName) const;   // image whose base name matches, or empty
-    QString ChapterCoverPath(int nChapter) const;       // title image (chN_cover, else chN_start), or empty
+    QString ChapterCoverPath(int nChapter) const;       // title image (chN_cover, if empty chN_start), or empty if not found
 };
 
 namespace MangaLibrary {
