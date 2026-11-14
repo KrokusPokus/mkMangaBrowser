@@ -119,7 +119,8 @@ void CMainWindow::LoadLibrary()
         connect(m_pCache, &CThumbnailCache::ThumbnailFailed, this, &CMainWindow::OnThumbnailFailed);
     }
 
-    m_aBooks = MangaLibrary::Load(m_config.sMangaDir);
+    QStringList aErrors;
+    m_aBooks = MangaLibrary::Load(m_config.sMangaDir, &aErrors);
 
     const bool bFirstLoad = m_bFirstShow;   // ApplyView() restores the saved position the first time
     ApplyView(false);
@@ -127,6 +128,9 @@ void CMainWindow::LoadLibrary()
         m_pView->SetScrollPosition(ptScroll);
     m_pCache->SaveIndex();
     QGuiApplication::restoreOverrideCursor();
+
+    if (!aErrors.isEmpty())
+        QMessageBox::warning(this, tr("Manga Browser"), aErrors.join(QLatin1Char('\n')));
 
     // Empty library: usually a wrong folder -> explain and let the user choose another one
     if (m_aBooks.isEmpty()) {

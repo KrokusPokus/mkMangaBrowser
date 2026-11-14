@@ -8,28 +8,12 @@ For now only unpacked books (image files in a folder) are supported; CBZ may fol
 ```
 <Manga>/<Author>/<Author (Date) Title>/
     000.jpg … NNN.jpg   pages (any image format Qt can read), naturally sorted
-    *.txt               meta file (the first *.txt in the folder), optional
+    metadata.conf       book metadata (UTF-8 without BOM)
 ```
 
-Meta file (UTF-8 or UTF-16 with BOM):
-
-```
-author_orig=木城 ゆきと
-author_en=Kishiro Yukito
-name_orig=銃夢Vol.01 錆びた天使
-name_en=Battle Angel Alita v01 - Rusty Angel
-type=manga
-date=1991-09-19
-cover=000a              page base name of the cover (default: first page)
-chapters=6
-ch1_start=003
-ch1_title_orig=錆びた天使
-ch1_title_en=Fight 1 "Rusty Angel"
-…
-```
-
-Missing values are taken from the folder name `Author (Date) Title` (author: otherwise the author folder).
-English names take precedence over the original ones for display. Folders whose name starts with `_` are ignored.
+The metadata format is specified in [doc/MetadataFormat.md](doc/MetadataFormat.md).
+A book folder without `metadata.conf` gets a new one, generated from the folder names. After setting `chapters=N`, F5 adds empty entries for chapters 1..N and removes entries beyond N.
+Folders whose name starts with `_` are ignored.
 
 ## Usage
 
