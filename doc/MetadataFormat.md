@@ -39,9 +39,11 @@ to the last page; suffixes like `000a` and double pages like `029-030` occur.
 | Key           | Value                        | Meaning |
 |---------------|------------------------------|---------|
 | `author_orig` | text                         | Author name in the original language/script, e.g. `木城 ゆきと` |
-| `author_en`   | text                         | Author name in English/romanized, e.g. `Kishiro Yukito` |
-| `name_orig`   | text                         | Book title in the original language, e.g. `銃夢Vol.01 錆びた天使` |
-| `name_en`     | text                         | Book title in English, e.g. `Battle Angel Alita v01 - Rusty Angel` |
+| `author`      | text                         | Author name in English/romanized, e.g. `Kishiro Yukito` |
+| `title_orig`  | text                         | Book title in the original language, e.g. `銃夢Vol.01 錆びた天使` |
+| `title`       | text                         | Book title in English, e.g. `Battle Angel Alita v01 - Rusty Angel` |
+| `series_orig` | text                         | Series the book belongs to, in the original language, e.g. `銃夢` |
+| `series`      | text                         | Series the book belongs to, in English, e.g. `Battle Angel Alita` |
 | `type`        | word                         | Kind of book, e.g. `manga` (further values to be defined) |
 | `date`        | `YYYY-MM-DD`                 | Publication date (whether shorter forms like `YYYY` occur is open) |
 | `cover`       | page reference               | Cover image of the book, e.g. `000a` |
@@ -56,7 +58,7 @@ to the last page; suffixes like `000a` and double pages like `029-030` occur.
 | `chN_start`      | page reference | First page of the chapter. Opening the chapter starts here. |
 | `chN_cover`      | page reference | Title image of the chapter, shown as its thumbnail. May differ from `chN_start`: a chapter can start on page `028` but use the double page `029-030` as its title image. |
 | `chN_title_orig` | text           | Chapter title in the original language |
-| `chN_title_en`   | text           | Chapter title in English |
+| `chN_title`      | text           | Chapter title in English |
 
 ## Creating a missing file
 
@@ -69,8 +71,8 @@ The new file is filled from the folder names:
 
 | Field       | Source |
 |-------------|--------|
-| `author_en` | name of the author folder (`<Author>`) |
-| `name_en`   | title from the book folder name, see below |
+| `author`    | name of the author folder (`<Author>`) |
+| `title`     | title from the book folder name, see below |
 | `date`      | date from the book folder name, see below; empty if none |
 | `cover`     | first image file of the folder (natural sort order), as page reference; empty if there is none |
 
@@ -82,14 +84,18 @@ The book folder name is matched against these forms, in this order:
 
 `Date` is `YYYY`, `YYYY-MM` or `YYYY-MM-DD`; other text in parentheses (e.g. `Foo (Remastered) Bar`) is not a date.
 
-The new file also contains the empty fields `author_orig`, `name_orig`, `type` and `chapters` for manual editing:
+The new file also contains the empty fields `author_orig`, `title_orig`, `series_orig`, `series`, `type` and `chapters`
+for manual editing:
 
 ```
 author_orig=
-author_en=Kishiro Yukito
+author=Kishiro Yukito
 
-name_orig=
-name_en=Battle Angel Alita v01
+title_orig=
+title=Battle Angel Alita v01
+
+series_orig=
+series=
 
 type=
 date=1991-09-19
@@ -105,7 +111,7 @@ an existing `metadata.conf` is adjusted to `chapters`:
 
 - If `chapters` is empty, missing or not a number ≥ 0, the file is not changed.
 - All `chN_*` entries with `N > chapters` are removed without asking (also unknown chapter keys).
-- For every chapter `1..chapters`, missing `chN_start`, `chN_cover`, `chN_title_orig` and `chN_title_en` are added
+- For every chapter `1..chapters`, missing `chN_start`, `chN_cover`, `chN_title_orig` and `chN_title` are added
   with empty values:
   - within an existing chapter, each missing key is inserted after the preceding key of this order
     (or before the first line of the chapter);
@@ -124,12 +130,12 @@ chapters=2
 ch1_start=
 ch1_cover=
 ch1_title_orig=
-ch1_title_en=
+ch1_title=
 
 ch2_start=
 ch2_cover=
 ch2_title_orig=
-ch2_title_en=
+ch2_title=
 ```
 
 No other field of an existing file is ever changed.
@@ -140,23 +146,26 @@ Every field may be missing (and the file itself, if it could not be created).
 
 | Value              | Order of sources |
 |--------------------|------------------|
-| Displayed author   | `author_en`, `author_orig`, author folder name |
-| Displayed title    | `name_en`, `name_orig`, title from the book folder name (rules above) |
+| Displayed author   | `author`, `author_orig`, author folder name |
+| Displayed title    | `title`, `title_orig`, title from the book folder name (rules above) |
 | Date               | `date`, date from the book folder name (rules above) |
 | Book cover         | page given by `cover`, first page |
 | Chapter thumbnail  | page given by `chN_cover`, page given by `chN_start` |
-| Chapter title      | `chN_title_en`, `chN_title_orig`, "Chapter N" |
+| Chapter title      | `chN_title`, `chN_title_orig`, "Chapter N" |
 
 ## Example
 
-Chapter 2 is modified from the real file to show a title image that differs from the start page.
+Chapter 2 is modified from the real file to show a title image that differs from the start page; the series fields are added.
 
 ```
 author_orig=木城 ゆきと
-author_en=Kishiro Yukito
+author=Kishiro Yukito
 
-name_orig=銃夢Vol.01 錆びた天使
-name_en=Battle Angel Alita v01 - Rusty Angel
+title_orig=銃夢Vol.01 錆びた天使
+title=Battle Angel Alita v01 - Rusty Angel
+
+series_orig=銃夢
+series=Battle Angel Alita
 
 type=manga
 date=1991-09-19
@@ -167,12 +176,12 @@ chapters=6
 ch1_start=003
 ch1_cover=003
 ch1_title_orig=錆びた天使
-ch1_title_en=Fight 1 "Rusty Angel"
+ch1_title=Fight 1 "Rusty Angel"
 
 ch2_start=028
 ch2_cover=029-030
 ch2_title_orig=戦いの血
-ch2_title_en=Fight 2 "Fight on Instinct"
+ch2_title=Fight 2 "Fight on Instinct"
 ```
 
 ## Open points

@@ -23,10 +23,10 @@ void ApplyFilter(QList<SBook>& aBooks, const SViewSettings& settings)
     for (SBook& book : aBooks) {
         bool bShow = true;
         if (!aWords.isEmpty()) {
-            QStringList aHay{ book.sAuthor, book.sTitle, book.sDate, book.meta.sAuthorOrig, book.meta.sAuthorEn,
-                              book.meta.sNameOrig, book.meta.sNameEn, book.meta.sType };
+            QStringList aHay{ book.sAuthor, book.sTitle, book.sDate, book.meta.sAuthorOrig, book.meta.sAuthor,
+                              book.meta.sTitleOrig, book.meta.sTitle, book.meta.sType };
             for (const SChapter& ch : std::as_const(book.meta.aChapters))
-                aHay << ch.sTitleOrig << ch.sTitleEn;
+                aHay << ch.sTitleOrig << ch.sTitle;
             const QString sHaystack = aHay.join(QLatin1Char('\n'));
             for (const QString& sWord : aWords) {
                 if (!sHaystack.contains(sWord, Qt::CaseInsensitive)) {

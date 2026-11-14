@@ -51,10 +51,10 @@ void CInfoPopup::SetInfo(const SBook& book, const SBookMeta& meta)
     // Second line only if it differs from the first
     auto other = [](const QString& sFirst, const QString& sSecond) { return sSecond == sFirst ? QString() : sSecond; };
 
-    const QString sTitle = meta.sNameEn.isEmpty() ? book.sTitle : meta.sNameEn;
-    const QString sAuthor = meta.sAuthorEn.isEmpty() ? book.sAuthor : meta.sAuthorEn;
+    const QString sTitle = meta.sTitle.isEmpty() ? book.sTitle : meta.sTitle;
+    const QString sAuthor = meta.sAuthor.isEmpty() ? book.sAuthor : meta.sAuthor;
     addRow(tr("Title"), sTitle);
-    addRow(QString(), other(sTitle, meta.sNameOrig));
+    addRow(QString(), other(sTitle, meta.sTitleOrig));
     addRow(tr("Author"), sAuthor);
     addRow(QString(), other(sAuthor, meta.sAuthorOrig));
     addRow(tr("Type"), meta.sType);
@@ -72,8 +72,8 @@ void CInfoPopup::SetInfo(const SBook& book, const SBookMeta& meta)
         m_pLayout->addWidget(pHeading, nRow++, 0, 1, 2);
 
         for (const SChapter& ch : meta.aChapters) {
-            QString sText = ch.sTitleEn.isEmpty() ? ch.sTitleOrig : ch.sTitleEn;
-            if (!ch.sTitleEn.isEmpty() && !ch.sTitleOrig.isEmpty() && ch.sTitleOrig != ch.sTitleEn)
+            QString sText = ch.sTitle.isEmpty() ? ch.sTitleOrig : ch.sTitle;
+            if (!ch.sTitle.isEmpty() && !ch.sTitleOrig.isEmpty() && ch.sTitleOrig != ch.sTitle)
                 sText += QStringLiteral("  \u00B7  ") + ch.sTitleOrig;
             auto* pLabel = new QLabel(sText, this);
             pLabel->setTextFormat(Qt::PlainText);

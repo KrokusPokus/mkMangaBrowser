@@ -474,7 +474,7 @@ void CMainWindow::ShowBookMenu(int nBook, const QPoint& ptGlobal)
     for (int i = 0; i < book.meta.aChapters.size(); ++i) {
         const SChapter& ch = book.meta.aChapters.at(i);
         const QString sPage = book.PagePath(ch.sStart);
-        QString sTitle = ch.sTitleEn.isEmpty() ? ch.sTitleOrig : ch.sTitleEn;
+        QString sTitle = ch.sTitle.isEmpty() ? ch.sTitleOrig : ch.sTitle;
         if (sTitle.isEmpty())
             sTitle = tr("Chapter %1").arg(i + 1);
         QAction* pAction = pChapters->addAction(QStringLiteral("%1\t%2").arg(sTitle, ch.sStart));
@@ -534,7 +534,7 @@ void CMainWindow::EditMeta(int nBook)
 void CMainWindow::WebSearch(int nBook)
 {
     const SBook& book = m_aBooks.at(nBook);
-    const QString sName = book.meta.sNameOrig.isEmpty() ? book.sTitle : book.meta.sNameOrig;
+    const QString sName = book.meta.sTitleOrig.isEmpty() ? book.sTitle : book.meta.sTitleOrig;
     if (sName.isEmpty())
         return;
     QString sQuery = QString::fromUtf8(QUrl::toPercentEncoding(sName));

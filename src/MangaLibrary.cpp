@@ -80,7 +80,7 @@ QString GenerateMeta(const QString& sAuthorFolderName, const QString& sBookFolde
     QString sDate, sTitle;
     ParseFolderName(sBookFolderName, sDate, sTitle);
     const QString sCover = aPages.isEmpty() ? QString() : QFileInfo(aPages.first()).completeBaseName();
-    return QStringLiteral("author_orig=\nauthor_en=%1\n\nname_orig=\nname_en=%2\n\ntype=\ndate=%3\n\ncover=%4\nchapters=\n")
+    return QStringLiteral("author_orig=\nauthor=%1\n\ntitle_orig=\ntitle=%2\n\nseries_orig=\nseries=\n\ntype=\ndate=%3\n\ncover=%4\nchapters=\n")
         .arg(sAuthorFolderName, sTitle, sDate, sCover);
 }
 
@@ -94,7 +94,7 @@ QString LineKey(const QString& sRawLine)
     return sLine.left(nPos).trimmed().toLower();
 }
 
-// "ch12_title_en" -> 12 and "title_en"; -1 if the key is not a chapter key
+// "ch12_title" -> 12 and "title"; -1 if the key is not a chapter key
 int ChapterOfKey(const QString& sKey, QString* pField = nullptr)
 {
     static const QRegularExpression s_re(QStringLiteral(R"(^ch(\d+)_(.+)$)"));
@@ -108,14 +108,14 @@ int ChapterOfKey(const QString& sKey, QString* pField = nullptr)
 
 // Adjusts the chapter entries of an existing metadata.conf to "chapters=N" (only if N is a number):
 //  - entries of chapters > N are removed (all chN_* keys, also unknown ones)
-//  - missing chN_start/cover/title_orig/title_en of chapters 1..N are added with empty values.
+//  - missing chN_start/cover/title_orig/title of chapters 1..N are added with empty values.
 //    Within a chapter they are inserted in this order next to the existing keys; a missing chapter
 //    is added as a block after the previous chapter (chapter 1: after "chapters=").
 // All other lines stay unchanged. The file is only written if something changed.
 bool UpdateChapterEntries(const QString& sPath, QStringList* pErrors)
 {
     static const QStringList s_aFields = { QStringLiteral("start"), QStringLiteral("cover"),
-                                           QStringLiteral("title_orig"), QStringLiteral("title_en") };
+                                           QStringLiteral("title_orig"), QStringLiteral("title") };
     const QString sOriginal = ReadText(sPath);
     QStringList aLines = sOriginal.split(QLatin1Char('\n'));
     if (!aLines.isEmpty() && aLines.last().isEmpty())
@@ -267,8 +267,8 @@ SBook LoadBook(const QString& sMangaDir, const QString& sBookPath, QStringList* 
     // ---- Display values: metadata.conf (English preferred), then the folder names (same rules as for a new file)
     QString sFolderDate, sFolderTitle;
     ParseFolderName(sBookFolderName, sFolderDate, sFolderTitle);
-    book.sAuthor = FirstNonEmpty({ book.meta.sAuthorEn, book.meta.sAuthorOrig, sAuthorFolderName });
-    book.sTitle  = FirstNonEmpty({ book.meta.sNameEn, book.meta.sNameOrig, sFolderTitle, sBookFolderName });
+    book.sAuthor = FirstNonEmpty({ book.meta.sAuthor, book.meta.sAuthorOrig, sAuthorFolderName });
+    book.sTitle  = FirstNonEmpty({ book.meta.sTitle, book.meta.sTitleOrig, sFolderTitle, sBookFolderName });
     book.sDate   = FirstNonEmpty({ book.meta.sDate, sFolderDate });
 
     // ---- Cover: "cover=" from the meta file, otherwise the first page
@@ -369,7 +369,7 @@ SBookMeta ReadMeta(const QString& sMetaPath)
     if (sMetaPath.isEmpty())
         return meta;
 
-    static const QRegularExpression s_reChapter(QStringLiteral(R"(^ch(\d+)_(start|cover|title_orig|title_en)$)"));
+    static const QRegularExpression s_reChapter(QStringLiteral(R"(^ch(\d+)_(start|cover|title_orig|title)$)"));
     QMap<int, SChapter> mapChapters;
     int nChapters = -1;
 
@@ -383,9 +383,11 @@ SBookMeta ReadMeta(const QString& sMetaPath)
         const QString sValue = sLine.mid(nPos + 1).trimmed();
 
         if      (sKey == QLatin1String("author_orig")) meta.sAuthorOrig = sValue;
-        else if (sKey == QLatin1String("author_en"))   meta.sAuthorEn = sValue;
-        else if (sKey == QLatin1String("name_orig"))   meta.sNameOrig = sValue;
-        else if (sKey == QLatin1String("name_en"))     meta.sNameEn = sValue;
+        else if (sKey == QLatin1String("author"))      meta.sAuthor = sValue;
+        else if (sKey == QLatin1String("title_orig"))  meta.sTitleOrig = sValue;
+        else if (sKey == QLatin1String("title"))       meta.sTitle = sValue;
+        else if (sKey == QLatin1String("series_orig")) meta.sSeriesOrig = sValue;
+        else if (sKey == QLatin1String("series"))      meta.sSeries = sValue;
         else if (sKey == QLatin1String("type"))        meta.sType = sValue;
         else if (sKey == QLatin1String("date"))        meta.sDate = sValue;
         else if (sKey == QLatin1String("cover"))       meta.sCover = sValue;
@@ -400,7 +402,7 @@ SBookMeta ReadMeta(const QString& sMetaPath)
             if      (sField == QLatin1String("start"))      ch.sStart = sValue;
             else if (sField == QLatin1String("cover"))      ch.sCover = sValue;
             else if (sField == QLatin1String("title_orig")) ch.sTitleOrig = sValue;
-            else                                            ch.sTitleEn = sValue;
+            else                                            ch.sTitle = sValue;
         }
     }
 

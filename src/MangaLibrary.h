@@ -22,18 +22,20 @@ struct SChapter {
     QString sStart;             // page base name, e.g. "028": opening the chapter starts here
     QString sCover;             // page base name of the title image, e.g. "029-030" (empty: use sStart)
     QString sTitleOrig;
-    QString sTitleEn;
+    QString sTitle;
 };
 
 // Contents of the meta text file in a book folder:
-//   author_orig=, author_en=, name_orig=, name_en=, type=, date=, cover=, chapters=,
-//   ch<N>_start=, ch<N>_cover=, ch<N>_title_orig=, ch<N>_title_en=
+//   author_orig=, author=, title_orig=, title=, series_orig=, series=, type=, date=, cover=, chapters=,
+//   ch<N>_start=, ch<N>_cover=, ch<N>_title_orig=, ch<N>_title=
 // Specification: doc/MetadataFormat.md
 struct SBookMeta {
     QString         sAuthorOrig;
-    QString         sAuthorEn;
-    QString         sNameOrig;
-    QString         sNameEn;
+    QString         sAuthor;
+    QString         sTitleOrig;
+    QString         sTitle;
+    QString         sSeriesOrig;
+    QString         sSeries;
     QString         sType;          // "manga", ...
     QString         sDate;          // "YYYY-MM-DD", "YYYY", ...
     QString         sCover;         // page base name, e.g. "000a"
