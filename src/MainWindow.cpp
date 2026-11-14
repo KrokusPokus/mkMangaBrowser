@@ -347,16 +347,13 @@ void CMainWindow::UpdateTitle()
 void CMainWindow::InitStateFile()
 {
     // State (view, window geometry, scroll position) separate from the configuration:
-    // ~/.local/state/mkMangaBrowser/state.ini
-    const QString statePath = QStandardPaths::writableLocation(QStandardPaths::StateLocation);
-    const QDir stateDir(statePath);
-    if (!stateDir.exists()) {
-        if (!stateDir.mkpath(QStringLiteral("."))) { // creates the directory including subfolders
-            return;
-        }
+    // ~/.local/state/mkProjects/mkMangaBrowser_state.conf
+    const QString statePath = QDir(QStandardPaths::writableLocation(QStandardPaths::GenericStateLocation)).filePath(QStringLiteral("mkProjects"));
+    if (!QDir().mkpath(statePath)) { // creates the directory including subfolders
+        return;
     }
 
-    m_stateFileFullPath = QDir(statePath).filePath(QStringLiteral("state.ini"));
+    m_stateFileFullPath = QDir(statePath).filePath(QStringLiteral("mkMangaBrowser_state.conf"));
     m_pState = std::make_unique<QSettings>(m_stateFileFullPath, QSettings::IniFormat);
 }
 
