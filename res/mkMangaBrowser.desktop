@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Manga Browser
+Exec=mkMangaBrowser
+Icon=mkMangaBrowser
+Categories=Graphics;Viewer;
+StartupWMClass=mkMangaBrowser
