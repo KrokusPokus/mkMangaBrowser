@@ -10,6 +10,7 @@
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QSettings>
+#include <QStandardPaths>
 #include <QTimer>
 #include <QTranslator>
 
@@ -39,8 +40,10 @@ int main(int argc, char* argv[])
     parser.addOption(optManga);
     parser.process(app);
 
-    // ~/.config/mkMangaBrowser/mkMangaBrowser.ini
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("mkMangaBrowser"), QStringLiteral("mkMangaBrowser"));
+    // ~/.config/mkProjects/mkMangaBrowser.conf
+    const QString sConfigDir = QDir(QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation)).filePath(QStringLiteral("mkProjects"));
+    QDir().mkpath(sConfigDir);
+    QSettings settings(QDir(sConfigDir).filePath(QStringLiteral("mkMangaBrowser.conf")), QSettings::IniFormat);
     CConfig config;
     config.Load(settings);
 

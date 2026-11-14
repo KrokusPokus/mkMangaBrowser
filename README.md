@@ -46,7 +46,7 @@ English names take precedence over the original ones for display. Folders whose 
 
 ## Configuration
 
-`~/.config/mkMangaBrowser/mkMangaBrowser.ini` holds only `[Paths] MangaDir`. On first start you are asked for the folder (or use `mkMangaBrowser --manga <folder>`).
+`~/.config/mkProjects/mkMangaBrowser.conf` holds only `[Paths] MangaDir`. On first start you are asked for the folder (or use `mkMangaBrowser --manga <folder>`).
 View, window geometry and scroll position are stored in `~/.local/state/mkMangaBrowser/state.ini`.
 
 ## Building

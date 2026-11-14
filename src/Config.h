@@ -5,7 +5,7 @@
 
 class QSettings;
 
-// Settings file ~/.config/mkMangaBrowser/mkMangaBrowser.ini. For now it holds a single value:
+// Settings file ~/.config/mkProjects/mkMangaBrowser.conf. For now it holds a single value:
 //   [Paths]
 //   MangaDir=<archive folder: one subfolder per author, each with one subfolder per book>
 class CConfig
