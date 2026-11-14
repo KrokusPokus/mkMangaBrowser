@@ -195,6 +195,10 @@ void CBookGridView::Relayout()
                 }
             }
 
+            // Chapter mode: chapter thumbnails that wrap into a new row start at the x position of the
+            // first chapter (right of the book cover), so that only book covers start at the left margin
+            int nChapterIndentX = kLeftMarginImage;
+
             for (const SEntry& entry : std::as_const(aEntries)) {
                 auto itWidth = m_mapThumbWidths.find(entry.sMarker);
                 if (itWidth == m_mapThumbWidths.end())
@@ -206,8 +210,11 @@ void CBookGridView::Relayout()
 
                 QPoint ptImage;
                 if (bNewBookRow || nPreviousX + kImageDistanceH + nWidth > nClientW - kRightReserve) {
-                    ptImage = QPoint(kLeftMarginImage, nYMax + kImageDistanceV);
-                    nPreviousX = kLeftMarginImage + nWidth;
+                    int nX = kLeftMarginImage;
+                    if (m_bChapterMode && entry.nChapter >= 0 && nChapterIndentX + nWidth <= nClientW - kRightReserve)
+                        nX = nChapterIndentX;   // too narrow window: left margin as before
+                    ptImage = QPoint(nX, nYMax + kImageDistanceV);
+                    nPreviousX = nX + nWidth;
                 }
                 else if (bAfterHeader) {
                     ptImage = QPoint(kLeftMarginImage, nYMax + kHeaderToImage);
@@ -234,6 +241,8 @@ void CBookGridView::Relayout()
                 nYMax = std::max(nYMax, nBottom);
                 nXMax = std::max(nXMax, item.rcImage.right() + 1);
                 ptNext = QPoint(item.rcImage.right() + 1 + kImageDistanceH, item.rcImage.top());
+                if (entry.nChapter < 0)
+                    nChapterIndentX = ptNext.x();
                 m_aThumbs.append(item);
 
                 bAfterHeader = false;
