@@ -633,7 +633,7 @@ void CMainWindow::OpenFolder(int nBook)
     // Ctrl+L without a book under the mouse -> Manga main folder
     const QString sPath = nBook >= 0 ? m_aBooks.at(nBook).sBookPath : m_config.sMangaDir;
     if (QFileInfo(sPath).isDir())
-        QDesktopServices::openUrl(QUrl::fromLocalFile(sPath));
+        openWithSystemDefault(QUrl::fromLocalFile(sPath));
 }
 
 void CMainWindow::ShowHelp()
