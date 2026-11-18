@@ -86,13 +86,3 @@ install(FILES res/mkMangaBrowser.desktop
 install(FILES res/mkMangaBrowser.svg
     DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
 )
-
-if(LINUX)
-    add_custom_command(TARGET mkMangaBrowser POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_FILE:mkMangaBrowser>
-            $ENV{HOME}/.local/bin/mkMangaBrowser
-
-        COMMENT "Copying mkMangaBrowser to ~/.local/bin/"
-    )
-endif()

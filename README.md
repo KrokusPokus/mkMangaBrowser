@@ -42,6 +42,16 @@ View, window geometry and scroll position are stored in `~/.local/state/mkProjec
 ## Building
 
 ```
-./build.sh            # builds into build/bin/ and copies to ~/.local/bin/
+./build.sh            # builds into build/bin/
 ./build_lupdate.sh    # updates i18n/*.ts
 ```
+
+Install system-wide as an Arch package (builds the current state from GitHub):
+
+```
+cd packaging/arch && makepkg -si
+```
+
+## License
+
+GPL-3.0-only, see [LICENSE](LICENSE).
