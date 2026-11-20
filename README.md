@@ -1,7 +1,14 @@
 # mkMangaBrowser
 
-Qt6 app that displays a manga/comic collection as a grouped cover overview (successor of the old AHK script; grid view and thumbnail cache taken from mkGameBrowser).
+A Qt6 app that shows a manga/comic collection as a grouped cover overview, with per-book chapter metadata.
+It is the successor of an earlier AutoHotkey script; the grid view and the thumbnail cache are shared with
+[mkGameBrowser](https://github.com/KrokusPokus/mkGameBrowser).
+
+mkMangaBrowser is a browser, not a reader: books are opened in the system image viewer
+([mkImageViewer](https://github.com/KrokusPokus/mkImageViewer) is the intended reader).
 For now only unpacked books (image files in a folder) are supported; CBZ may follow later.
+
+![screenshot](images/screenshot.webp)
 
 ## Data structure
 
@@ -25,7 +32,7 @@ Folders whose name starts with `_` are ignored.
   Filters can be stacked;
   **Backspace** or the mouse button **Back** removes the last one. Active filters are shown in the title bar.
 - **Right-click on a cover:** Open, Chapters, Edit meta file, Open folder, Google.
-- **Double-click:** open the first page in the system image viewer (mkImageViewer acts as the reader). **Hover:** info window with chapters.
+- **Double-click:** open the first page in the system image viewer. **Hover:** info window with chapters.
 - **Ctrl+F:** filter bar (every word must occur in names, type, date or chapter titles). Esc clears and closes it.
 - **Keys:** A–Z/0–9 jump to the group; Page Up/Down, Home/End, arrow keys (horizontal with Shift);
   Ctrl+E/G/L for the book under the mouse; F1 help; F5 reload; Esc closes the filter bar or quits.
@@ -39,12 +46,30 @@ Folders whose name starts with `_` are ignored.
 `~/.config/mkProjects/mkMangaBrowser.conf` holds only `[Paths] MangaDir`. On first start you are asked for the folder (or use `mkMangaBrowser --manga <folder>`).
 View, window geometry and scroll position are stored in `~/.local/state/mkProjects/mkMangaBrowser_state.conf`.
 
-## Building
+## Requirements
 
+- Qt ≥ 6.5 (Core, Gui, Widgets, LinguistTools), CMake ≥ 3.19 and a C++ compiler
+- An image viewer registered as the default application for the page format, ideally mkImageViewer
+
+On Arch Linux:
+
+```bash
+sudo pacman -S --needed base-devel cmake qt6-base qt6-tools
 ```
-./build.sh            # builds into build/bin/
-./build_lupdate.sh    # updates i18n/*.ts
+
+## Building and installing
+
+```bash
+git clone https://github.com/KrokusPokus/mkMangaBrowser.git
+cd mkMangaBrowser
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake --build build --parallel
+sudo cmake --install build                   # installs system-wide
+sudo xargs rm < build/install_manifest.txt   # uninstalls again
 ```
+
+For development, `./build.sh` builds into `build/bin/` without installing, and `./build_lupdate.sh` updates the
+translation sources in `i18n/*.ts`.
 
 ## License
 
